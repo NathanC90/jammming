@@ -68,6 +68,18 @@ describe('App', () => {
     expect(within(section('Results')).getByText('Harvest Moon')).toBeInTheDocument()
   })
 
+  it('keeps keyboard focus in the list after moving a track', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await searchFor(user, 'neil')
+
+    await user.click(await screen.findByRole('button', { name: 'Add Harvest Moon to playlist' }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Add Heart of Gold to playlist' })).toHaveFocus(),
+    )
+  })
+
   it('saves the playlist with its name and track URIs, then resets', async () => {
     const user = userEvent.setup()
     render(<App />)
