@@ -11,7 +11,14 @@ interface PlaylistProps {
   onSave: () => void
 }
 
-export function Playlist({ name, tracks, isSaving, onNameChange, onRemove, onSave }: PlaylistProps) {
+export function Playlist({
+  name,
+  tracks,
+  isSaving,
+  onNameChange,
+  onRemove,
+  onSave,
+}: PlaylistProps) {
   const canSave = tracks.length > 0 && name.trim() !== '' && !isSaving
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {

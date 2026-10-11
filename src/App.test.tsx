@@ -20,8 +20,20 @@ vi.mock('./lib/spotify', async (importOriginal) => {
 })
 
 const tracks: Track[] = [
-  { id: '1', name: 'Harvest Moon', artist: 'Neil Young', album: 'Harvest Moon', uri: 'spotify:track:1' },
-  { id: '2', name: 'Heart of Gold', artist: 'Neil Young', album: 'Harvest', uri: 'spotify:track:2' },
+  {
+    id: '1',
+    name: 'Harvest Moon',
+    artist: 'Neil Young',
+    album: 'Harvest Moon',
+    uri: 'spotify:track:1',
+  },
+  {
+    id: '2',
+    name: 'Heart of Gold',
+    artist: 'Neil Young',
+    album: 'Harvest',
+    uri: 'spotify:track:2',
+  },
 ]
 
 async function searchFor(user: ReturnType<typeof userEvent.setup>, term: string) {
@@ -92,7 +104,10 @@ describe('App', () => {
     await user.type(name, 'Neil')
     await user.click(screen.getByRole('button', { name: 'Save to Spotify' }))
 
-    expect(spotify.savePlaylist).toHaveBeenCalledWith('Neil', ['spotify:track:1', 'spotify:track:2'])
+    expect(spotify.savePlaylist).toHaveBeenCalledWith('Neil', [
+      'spotify:track:1',
+      'spotify:track:2',
+    ])
     expect(await screen.findByRole('status')).toHaveTextContent('Saved “Neil”')
     expect(name).toHaveValue('New Playlist')
     expect(within(section('Playlist')).queryByRole('listitem')).not.toBeInTheDocument()

@@ -7,7 +7,8 @@ interface TrackProps {
 }
 
 export function Track({ track, action, onAction }: TrackProps) {
-  const label = action === 'add' ? `Add ${track.name} to playlist` : `Remove ${track.name} from playlist`
+  const label =
+    action === 'add' ? `Add ${track.name} to playlist` : `Remove ${track.name} from playlist`
   return (
     <li className="track">
       <div className="track__info">

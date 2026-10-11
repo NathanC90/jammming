@@ -229,7 +229,11 @@ export async function searchTracks(term: string): Promise<Track[]> {
 export async function savePlaylist(name: string, trackUris: string[]): Promise<string> {
   const playlist = await api<{ id: string }>('/me/playlists', {
     method: 'POST',
-    body: JSON.stringify({ name: name.trim(), public: false, description: 'Created with Jammming' }),
+    body: JSON.stringify({
+      name: name.trim(),
+      public: false,
+      description: 'Created with Jammming',
+    }),
   })
   for (let i = 0; i < trackUris.length; i += ADD_ITEMS_BATCH) {
     await api(`/playlists/${playlist.id}/items`, {
