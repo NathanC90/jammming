@@ -5,21 +5,24 @@ import { Tracklist } from './Tracklist'
 interface PlaylistProps {
   name: string
   tracks: Track[]
-  isSaving: boolean
+  /** True when editing a playlist that was already saved. */
+  isEditing: boolean
   onNameChange: (name: string) => void
   onRemove: (track: Track) => void
   onSave: () => void
+  onNew: () => void
 }
 
 export function Playlist({
   name,
   tracks,
-  isSaving,
+  isEditing,
   onNameChange,
   onRemove,
   onSave,
+  onNew,
 }: PlaylistProps) {
-  const canSave = tracks.length > 0 && name.trim() !== '' && !isSaving
+  const canSave = tracks.length > 0 && name.trim() !== ''
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -47,9 +50,16 @@ export function Playlist({
         ) : (
           <p className="panel__empty">Add tracks from the results.</p>
         )}
-        <button type="submit" className="button" disabled={!canSave}>
-          {isSaving ? 'Saving…' : 'Save to Spotify'}
-        </button>
+        <div className="playlist__actions">
+          <button type="submit" className="button" disabled={!canSave}>
+            {isEditing ? 'Save changes' : 'Save playlist'}
+          </button>
+          {isEditing && (
+            <button type="button" className="button button--ghost" onClick={onNew}>
+              New playlist
+            </button>
+          )}
+        </div>
       </form>
     </section>
   )

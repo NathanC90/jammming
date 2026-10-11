@@ -220,8 +220,62 @@ input {
   border-bottom-color: var(--accent);
 }
 
-.playlist .button {
-  justify-self: center;
+.playlist__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.stack {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.button--small {
+  padding: 0.35rem 0.9rem;
+  font-size: 0.875rem;
+}
+
+.saved {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.saved__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.saved__item:last-child {
+  border-bottom: 0;
+}
+
+.saved__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.saved__name {
+  font-size: 1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.footer {
+  padding: 1.5rem clamp(1rem, 4vw, 2.5rem) 2rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.footer a {
+  color: var(--accent);
 }
 
 .tracklist {
@@ -242,6 +296,12 @@ input {
   border-bottom: 0;
 }
 
+.track__art {
+  flex: none;
+  border-radius: 6px;
+  background: var(--border);
+}
+
 .track__info {
   flex: 1;
   min-width: 0;
@@ -250,6 +310,15 @@ input {
 .track__name {
   font-size: 1rem;
   font-weight: 600;
+}
+
+.track__name a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.track__name a:hover {
+  text-decoration: underline;
 }
 
 .track__name,

@@ -2,43 +2,34 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
-import * as spotify from './lib/spotify'
+import { searchTracks, SearchError } from './lib/itunes'
+import { loadPlaylists } from './lib/playlists'
 import type { Track } from './types'
 
-vi.mock('./lib/spotify', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./lib/spotify')>()
-  return {
-    ...actual,
-    isConfigured: true,
-    isLoggedIn: vi.fn(() => true),
-    login: vi.fn(() => Promise.resolve()),
-    logout: vi.fn(),
-    completeLogin: vi.fn(() => Promise.resolve(false)),
-    searchTracks: vi.fn(),
-    savePlaylist: vi.fn(),
-  }
-})
+vi.mock('./lib/itunes', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./lib/itunes')>()),
+  searchTracks: vi.fn(),
+}))
 
 const tracks: Track[] = [
-  {
-    id: '1',
-    name: 'Harvest Moon',
-    artist: 'Neil Young',
-    album: 'Harvest Moon',
-    uri: 'spotify:track:1',
-  },
-  {
-    id: '2',
-    name: 'Heart of Gold',
-    artist: 'Neil Young',
-    album: 'Harvest',
-    uri: 'spotify:track:2',
-  },
+  { id: '1', name: 'Harvest Moon', artist: 'Neil Young', album: 'Harvest Moon' },
+  { id: '2', name: 'Heart of Gold', artist: 'Neil Young', album: 'Harvest' },
 ]
 
-async function searchFor(user: ReturnType<typeof userEvent.setup>, term: string) {
+type User = ReturnType<typeof userEvent.setup>
+
+async function searchFor(user: User, term: string) {
   await user.type(screen.getByRole('searchbox'), term)
   await user.click(screen.getByRole('button', { name: 'Search' }))
+}
+
+async function buildPlaylist(user: User, name: string) {
+  await searchFor(user, 'neil')
+  await user.click(await screen.findByRole('button', { name: 'Add Harvest Moon to playlist' }))
+  await user.click(screen.getByRole('button', { name: 'Add Heart of Gold to playlist' }))
+  const input = screen.getByLabelText('Playlist name')
+  await user.clear(input)
+  await user.type(input, name)
 }
 
 function section(name: string) {
@@ -46,10 +37,9 @@ function section(name: string) {
 }
 
 beforeEach(() => {
-  sessionStorage.clear()
-  vi.mocked(spotify.isLoggedIn).mockReturnValue(true)
-  vi.mocked(spotify.searchTracks).mockResolvedValue(tracks)
-  vi.mocked(spotify.savePlaylist).mockResolvedValue('pl1')
+  localStorage.clear()
+  vi.restoreAllMocks()
+  vi.mocked(searchTracks).mockResolvedValue(tracks)
 })
 
 describe('App', () => {
@@ -59,9 +49,19 @@ describe('App', () => {
 
     await searchFor(user, 'neil')
 
-    expect(spotify.searchTracks).toHaveBeenCalledWith('neil')
+    expect(searchTracks).toHaveBeenCalledWith('neil')
     expect(await within(section('Results')).findByText('Harvest Moon')).toBeInTheDocument()
     expect(within(section('Results')).getByText('Heart of Gold')).toBeInTheDocument()
+  })
+
+  it('shows search errors', async () => {
+    vi.mocked(searchTracks).mockRejectedValueOnce(new SearchError('Search timed out.'))
+    const user = userEvent.setup()
+    render(<App />)
+
+    await searchFor(user, 'neil')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Search timed out.')
   })
 
   it('moves tracks between results and playlist', async () => {
@@ -92,73 +92,62 @@ describe('App', () => {
     )
   })
 
-  it('saves the playlist with its name and track URIs, then resets', async () => {
-    const user = userEvent.setup()
-    render(<App />)
-    await searchFor(user, 'neil')
-    await user.click(await screen.findByRole('button', { name: 'Add Harvest Moon to playlist' }))
-    await user.click(screen.getByRole('button', { name: 'Add Heart of Gold to playlist' }))
-
-    const name = screen.getByLabelText('Playlist name')
-    await user.clear(name)
-    await user.type(name, 'Neil')
-    await user.click(screen.getByRole('button', { name: 'Save to Spotify' }))
-
-    expect(spotify.savePlaylist).toHaveBeenCalledWith('Neil', [
-      'spotify:track:1',
-      'spotify:track:2',
-    ])
-    expect(await screen.findByRole('status')).toHaveTextContent('Saved “Neil”')
-    expect(name).toHaveValue('New Playlist')
-    expect(within(section('Playlist')).queryByRole('listitem')).not.toBeInTheDocument()
-  })
-
   it('disables saving an empty playlist', () => {
     render(<App />)
-    expect(screen.getByRole('button', { name: 'Save to Spotify' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save playlist' })).toBeDisabled()
   })
 
-  it('keeps the playlist when saving fails', async () => {
-    vi.mocked(spotify.savePlaylist).mockRejectedValueOnce(
-      new spotify.SpotifyError('Spotify request failed (500).', 500),
-    )
+  it('saves a playlist, lists it, and resets the editor', async () => {
     const user = userEvent.setup()
     render(<App />)
-    await searchFor(user, 'neil')
-    await user.click(await screen.findByRole('button', { name: 'Add Harvest Moon to playlist' }))
-    await user.click(screen.getByRole('button', { name: 'Save to Spotify' }))
+    await buildPlaylist(user, 'Neil')
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Spotify request failed (500).')
+    await user.click(screen.getByRole('button', { name: 'Save playlist' }))
+
+    expect(screen.getByRole('status')).toHaveTextContent('Saved “Neil”')
+    expect(within(section('Saved playlists')).getByText('Neil')).toBeInTheDocument()
+    expect(within(section('Saved playlists')).getByText('2 tracks')).toBeInTheDocument()
+    expect(screen.getByLabelText('Playlist name')).toHaveValue('New Playlist')
+    expect(loadPlaylists()[0].tracks.map((t) => t.id)).toEqual(['1', '2'])
+  })
+
+  it('reopens a saved playlist and saves changes in place', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await buildPlaylist(user, 'Neil')
+    await user.click(screen.getByRole('button', { name: 'Save playlist' }))
+
+    await user.click(screen.getByRole('button', { name: 'Open Neil' }))
+    await user.click(screen.getByRole('button', { name: 'Remove Heart of Gold from playlist' }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    expect(loadPlaylists()).toHaveLength(1)
+    expect(within(section('Saved playlists')).getByText('1 track')).toBeInTheDocument()
+  })
+
+  it('deletes a saved playlist after confirmation', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const user = userEvent.setup()
+    render(<App />)
+    await buildPlaylist(user, 'Neil')
+    await user.click(screen.getByRole('button', { name: 'Save playlist' }))
+
+    await user.click(screen.getByRole('button', { name: 'Delete Neil' }))
+
+    expect(confirm).toHaveBeenCalled()
+    expect(screen.queryByRole('region', { name: 'Saved playlists' })).not.toBeInTheDocument()
+    expect(loadPlaylists()).toEqual([])
+  })
+
+  it('keeps the playlist being built across a reload', async () => {
+    const user = userEvent.setup()
+    const { unmount } = render(<App />)
+    await buildPlaylist(user, 'Draft')
+    unmount()
+
+    render(<App />)
+
+    expect(screen.getByLabelText('Playlist name')).toHaveValue('Draft')
     expect(within(section('Playlist')).getByText('Harvest Moon')).toBeInTheDocument()
-  })
-
-  it('signs in before searching, keeping the draft for after the redirect', async () => {
-    vi.mocked(spotify.isLoggedIn).mockReturnValue(false)
-    const user = userEvent.setup()
-    render(<App />)
-
-    await searchFor(user, 'neil')
-
-    expect(spotify.login).toHaveBeenCalled()
-    expect(spotify.searchTracks).not.toHaveBeenCalled()
-    expect(JSON.parse(sessionStorage.getItem('jammming.draft')!)).toMatchObject({ term: 'neil' })
-    expect(sessionStorage.getItem('jammming.pending-search')).toBe('1')
-  })
-
-  it('resumes the pending search after returning from Spotify', async () => {
-    sessionStorage.setItem(
-      'jammming.draft',
-      JSON.stringify({ term: 'neil', playlistName: 'Kept', playlistTracks: [tracks[1]] }),
-    )
-    sessionStorage.setItem('jammming.pending-search', '1')
-    vi.mocked(spotify.completeLogin).mockResolvedValueOnce(true)
-    render(<App />)
-
-    await waitFor(() => expect(spotify.searchTracks).toHaveBeenCalledWith('neil'))
-    expect(screen.getByLabelText('Playlist name')).toHaveValue('Kept')
-    expect(within(section('Playlist')).getByText('Heart of Gold')).toBeInTheDocument()
-    // The track already in the playlist is not offered again.
-    expect(await within(section('Results')).findByText('Harvest Moon')).toBeInTheDocument()
-    expect(within(section('Results')).queryByText('Heart of Gold')).not.toBeInTheDocument()
   })
 })

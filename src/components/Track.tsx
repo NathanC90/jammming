@@ -11,10 +11,22 @@ export function Track({ track, action, onAction }: TrackProps) {
     action === 'add' ? `Add ${track.name} to playlist` : `Remove ${track.name} from playlist`
   return (
     <li className="track">
+      {track.artworkUrl && (
+        <img className="track__art" src={track.artworkUrl} alt="" width="48" height="48" />
+      )}
       <div className="track__info">
-        <h3 className="track__name">{track.name}</h3>
+        <h3 className="track__name">
+          {track.storeUrl ? (
+            <a href={track.storeUrl} target="_blank" rel="noreferrer">
+              {track.name}
+            </a>
+          ) : (
+            track.name
+          )}
+        </h3>
         <p className="track__meta">
-          {track.artist} · {track.album}
+          {track.artist}
+          {track.album && ` · ${track.album}`}
         </p>
       </div>
       <button

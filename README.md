@@ -1,42 +1,30 @@
 # Jammming
 
-Search Spotify, build a playlist, and save it straight to your account. Built from
-Codecademy's _Jammming_ project brief with React, TypeScript and Vite.
+Search for songs, build playlists, and save them. Built from Codecademy's _Jammming_ project
+brief with React, TypeScript and Vite, using the free
+[iTunes Search API](https://performance-partners.apple.com/search-api). No account or API key
+needed.
 
 ![Jammming with search results on the left and a playlist on the right](docs/screenshot.png)
 
 ## Features
 
-- Search tracks by song, album or artist.
+- Search songs by title, album or artist, with album artwork and a link to each track on
+  Apple Music.
 - Add tracks to a playlist and remove them again; tracks already in the playlist are hidden
   from the results.
-- Name the playlist and save it to your Spotify account as a private playlist.
-- Your search and playlist survive the Spotify sign-in redirect, and a search that needed you
-  to sign in carries on once you're back.
+- Name and save playlists, then reopen, edit or delete them later.
+- The playlist you're building survives a page reload.
 - Keyboard and screen-reader friendly, responsive down to phone width, light and dark themes.
 
 ## Getting started
 
-You need Node 22+ and a Spotify account with Premium (Spotify requires Premium for the owner
-of a development-mode app).
+Requires Node 22+.
 
-1. **Create a Spotify app** at the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard):
-   - Tick **Web API**.
-   - Add the redirect URI `http://127.0.0.1:5173/`. Spotify rejects `localhost`, so the dev
-     server is pinned to `127.0.0.1`. Add `https://<your-user>.github.io/jammming/` too if
-     you deploy.
-   - Under **User Management**, add the Spotify accounts allowed to use the app (a
-     development-mode app allows up to five).
-2. **Configure and run:**
-
-   ```bash
-   cp .env.example .env.local   # then paste your app's Client ID
-   npm install
-   npm run dev                  # http://127.0.0.1:5173
-   ```
-
-No client secret is needed: sign-in uses the Authorization Code flow with PKCE, which is
-designed for apps that run entirely in the browser.
+```bash
+npm install
+npm run dev
+```
 
 ## Scripts
 
@@ -53,38 +41,34 @@ CI runs all of the checks above on every push to `main` and on every pull reques
 
 ## Deploying to GitHub Pages
 
-1. In the repository settings, set **Pages → Source** to **GitHub Actions**.
-2. Add a repository variable (**Settings → Secrets and variables → Actions → Variables**)
-   named `VITE_SPOTIFY_CLIENT_ID` with your Client ID. It's a variable rather than a secret
-   because a PKCE client ID is public anyway: it ships in the bundle.
-3. Add the Pages URL as a redirect URI in the Spotify dashboard.
-
-Every push to `main` then deploys. The deploy is skipped until the variable exists.
+In the repository settings, set **Pages → Source** to **GitHub Actions**. Every push to `main`
+then deploys to `https://<your-user>.github.io/jammming/`.
 
 ## How it works
 
 ```
 src/
-├── App.tsx               state, sign-in redirect handling, draft persistence
-├── components/           SearchBar, SearchResults, Playlist, Tracklist, Track
-├── lib/spotify.ts        PKCE sign-in, token refresh, search, save
+├── App.tsx               state: search results, the playlist being built, saved playlists
+├── components/           SearchBar, SearchResults, Playlist, Tracklist, Track, SavedPlaylists
+├── lib/itunes.ts         song search
+├── lib/playlists.ts      saving playlists in the browser
 └── types.ts
 ```
 
-`lib/spotify.ts` is the only module that talks to Spotify. Tokens live in `localStorage` and
-are refreshed a minute before they expire; a 401 signs you out with a message instead of
-failing silently.
+**Search uses JSONP.** Apple's Search API doesn't reliably send CORS headers, so a plain
+`fetch()` from a static site can be blocked by the browser. The API supports JSONP instead:
+the response is loaded as a script that hands the results to a callback. It needs no proxy
+server and no account. Apple limits searches to roughly 20 a minute per visitor.
+
+**Playlists are saved in `localStorage`**, so they stay in the browser that made them. There
+is no account or sync between devices.
 
 ### Differences from the Codecademy brief
 
-The brief predates several Spotify Web API changes, so this follows the current API:
-
-- **PKCE instead of the implicit grant.** Spotify deprecated the implicit grant flow the
-  original project uses.
-- **February 2026 development-mode API.** Playlists are created with `POST /me/playlists`
-  and filled with `POST /playlists/{id}/items` (batched at 100 tracks per request), and search
-  returns at most 10 results.
-- **Loopback redirect URI.** Spotify no longer accepts `localhost`.
+The brief saves playlists to Spotify. Spotify's Web API now requires the developer to have a
+Premium subscription (since February 2026), so this version uses Apple's free Search API and
+saves playlists locally instead. A Spotify version with PKCE sign-in is in this repository's
+git history (commit `7b5c2d2`) if you want to bring it back.
 
 ## License
 

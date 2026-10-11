@@ -3,5 +3,16 @@ export interface Track {
   name: string
   artist: string
   album: string
-  uri: string
+  artworkUrl?: string
+  /** 30-second preview clip, when Apple provides one. */
+  previewUrl?: string
+  /** The track's page on Apple Music / iTunes. */
+  storeUrl?: string
+}
+
+export interface SavedPlaylist {
+  id: string
+  name: string
+  tracks: Track[]
+  savedAt: string
 }
