@@ -302,6 +302,53 @@ input {
   background: var(--border);
 }
 
+.track__preview {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.track__preview .track__art {
+  grid-area: 1 / 1;
+}
+
+.track__icon {
+  grid-area: 1 / 1;
+  width: 24px;
+  height: 24px;
+  padding: 4px;
+  box-sizing: content-box;
+  border-radius: 50%;
+  fill: currentColor;
+  background: rgb(0 0 0 / 0.55);
+}
+
+/* With artwork, the icon only shows on hover, keyboard focus, or while playing. */
+.track__preview:has(img) .track__icon {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.track__preview:hover .track__icon,
+.track__preview:focus-visible .track__icon,
+.track--playing .track__icon {
+  opacity: 1;
+}
+
+.track--playing .track__name {
+  color: var(--accent);
+}
+
 .track__info {
   flex: 1;
   min-width: 0;

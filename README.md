@@ -11,6 +11,7 @@ needed.
 
 - Search songs by title, album or artist, with album artwork and a link to each track on
   Apple Music.
+- Play a 30-second preview of any track; starting one stops the last.
 - Add tracks to a playlist and remove them again; tracks already in the playlist are hidden
   from the results.
 - Name and save playlists, then reopen, edit or delete them later.
@@ -49,9 +50,11 @@ then deploys to `https://<your-user>.github.io/jammming/`.
 ```
 src/
 ├── App.tsx               state: search results, the playlist being built, saved playlists
-├── components/           SearchBar, SearchResults, Playlist, Tracklist, Track, SavedPlaylists
+├── components/           SearchBar, SearchResults, Playlist, Tracklist, Track, SavedPlaylists,
+│                         PreviewProvider (the shared audio player)
 ├── lib/itunes.ts         song search
 ├── lib/playlists.ts      saving playlists in the browser
+├── lib/preview.ts        preview context: what's playing, play/pause
 └── types.ts
 ```
 
@@ -59,6 +62,10 @@ src/
 `fetch()` from a static site can be blocked by the browser. The API supports JSONP instead:
 the response is loaded as a script that hands the results to a callback. It needs no proxy
 server and no account. Apple limits searches to roughly 20 a minute per visitor.
+
+**Previews share one audio element**, so only one plays at a time. The play/pause buttons
+follow the element's own `play` and `pause` events rather than clicks, so they stay correct
+when a clip ends, fails to load, or is paused with keyboard media keys.
 
 **Playlists are saved in `localStorage`**, so they stay in the browser that made them. There
 is no account or sync between devices.

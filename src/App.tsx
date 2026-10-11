@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Playlist } from './components/Playlist'
+import { PreviewProvider } from './components/PreviewProvider'
 import { SavedPlaylists } from './components/SavedPlaylists'
 import { SearchBar } from './components/SearchBar'
 import { SearchResults } from './components/SearchResults'
@@ -104,6 +105,8 @@ export default function App() {
     }
   }
 
+  const showPreviewError = useCallback((text: string) => setStatus({ kind: 'error', text }), [])
+
   // Tracks already in the playlist are hidden from the results.
   const visibleResults = results.filter((r) => !draft.tracks.some((t) => t.id === r.id))
 
@@ -127,21 +130,23 @@ export default function App() {
 
         <SearchBar isSearching={isSearching} onSearch={search} />
 
-        <div className="columns">
-          <SearchResults tracks={visibleResults} hasSearched={hasSearched} onAdd={addTrack} />
-          <div className="stack">
-            <Playlist
-              name={draft.name}
-              tracks={draft.tracks}
-              isEditing={draft.editingId !== undefined}
-              onNameChange={(name) => setDraft((d) => ({ ...d, name }))}
-              onRemove={removeTrack}
-              onSave={save}
-              onNew={() => setDraft(emptyDraft)}
-            />
-            <SavedPlaylists playlists={saved} onOpen={open} onDelete={remove} />
+        <PreviewProvider onError={showPreviewError}>
+          <div className="columns">
+            <SearchResults tracks={visibleResults} hasSearched={hasSearched} onAdd={addTrack} />
+            <div className="stack">
+              <Playlist
+                name={draft.name}
+                tracks={draft.tracks}
+                isEditing={draft.editingId !== undefined}
+                onNameChange={(name) => setDraft((d) => ({ ...d, name }))}
+                onRemove={removeTrack}
+                onSave={save}
+                onNew={() => setDraft(emptyDraft)}
+              />
+              <SavedPlaylists playlists={saved} onOpen={open} onDelete={remove} />
+            </div>
           </div>
-        </div>
+        </PreviewProvider>
       </main>
 
       <footer className="footer">

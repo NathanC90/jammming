@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
@@ -12,9 +12,37 @@ vi.mock('./lib/itunes', async (importOriginal) => ({
 }))
 
 const tracks: Track[] = [
-  { id: '1', name: 'Harvest Moon', artist: 'Neil Young', album: 'Harvest Moon' },
-  { id: '2', name: 'Heart of Gold', artist: 'Neil Young', album: 'Harvest' },
+  {
+    id: '1',
+    name: 'Harvest Moon',
+    artist: 'Neil Young',
+    album: 'Harvest Moon',
+    previewUrl: 'https://example.com/1.m4a',
+  },
+  {
+    id: '2',
+    name: 'Heart of Gold',
+    artist: 'Neil Young',
+    album: 'Harvest',
+    previewUrl: 'https://example.com/2.m4a',
+  },
 ]
+
+/** jsdom can't play media; fire the events a browser would so the UI can react. */
+function stubAudio() {
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(function (
+    this: HTMLMediaElement,
+  ) {
+    this.dispatchEvent(new Event('play'))
+    return Promise.resolve()
+  })
+  const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(function (
+    this: HTMLMediaElement,
+  ) {
+    this.dispatchEvent(new Event('pause'))
+  })
+  return { play, pause }
+}
 
 type User = ReturnType<typeof userEvent.setup>
 
@@ -149,5 +177,63 @@ describe('App', () => {
 
     expect(screen.getByLabelText('Playlist name')).toHaveValue('Draft')
     expect(within(section('Playlist')).getByText('Harvest Moon')).toBeInTheDocument()
+  })
+
+  it('plays one preview at a time and toggles it off', async () => {
+    const { play, pause } = stubAudio()
+    const user = userEvent.setup()
+    render(<App />)
+    await searchFor(user, 'neil')
+
+    await user.click(await screen.findByRole('button', { name: 'Play preview of Harvest Moon' }))
+
+    expect(play).toHaveBeenCalledTimes(1)
+    expect((play.mock.contexts[0] as HTMLAudioElement).src).toBe('https://example.com/1.m4a')
+    const pauseButton = screen.getByRole('button', { name: 'Pause preview of Harvest Moon' })
+
+    // Starting another preview switches over instead of layering a second audio stream.
+    await user.click(screen.getByRole('button', { name: 'Play preview of Heart of Gold' }))
+    expect((play.mock.contexts[1] as HTMLAudioElement).src).toBe('https://example.com/2.m4a')
+    expect(play.mock.contexts[1]).toBe(play.mock.contexts[0])
+    expect(pauseButton).toHaveAccessibleName('Play preview of Harvest Moon')
+
+    await user.click(screen.getByRole('button', { name: 'Pause preview of Heart of Gold' }))
+    expect(pause).toHaveBeenCalled()
+    expect(
+      screen.getByRole('button', { name: 'Play preview of Heart of Gold' }),
+    ).toBeInTheDocument()
+  })
+
+  it('resets the button when a preview finishes', async () => {
+    const { play } = stubAudio()
+    const user = userEvent.setup()
+    render(<App />)
+    await searchFor(user, 'neil')
+    await user.click(await screen.findByRole('button', { name: 'Play preview of Harvest Moon' }))
+
+    act(() => (play.mock.contexts[0] as HTMLAudioElement).dispatchEvent(new Event('ended')))
+
+    expect(screen.getByRole('button', { name: 'Play preview of Harvest Moon' })).toBeInTheDocument()
+  })
+
+  it('reports a preview that fails to play', async () => {
+    stubAudio().play.mockRejectedValueOnce(new DOMException('no source', 'NotSupportedError'))
+    const user = userEvent.setup()
+    render(<App />)
+    await searchFor(user, 'neil')
+
+    await user.click(await screen.findByRole('button', { name: 'Play preview of Harvest Moon' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('preview of “Harvest Moon”')
+  })
+
+  it('shows no preview button for tracks without one', async () => {
+    vi.mocked(searchTracks).mockResolvedValue([{ ...tracks[0], previewUrl: undefined }])
+    const user = userEvent.setup()
+    render(<App />)
+    await searchFor(user, 'neil')
+
+    await screen.findByText('Harvest Moon')
+    expect(screen.queryByRole('button', { name: /preview/ })).not.toBeInTheDocument()
   })
 })

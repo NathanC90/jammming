@@ -1,3 +1,4 @@
+import { usePreview } from '../lib/preview'
 import type { Track as TrackData } from '../types'
 
 interface TrackProps {
@@ -6,13 +7,38 @@ interface TrackProps {
   onAction: (track: TrackData) => void
 }
 
+function PlayIcon({ playing }: { playing: boolean }) {
+  return (
+    <svg className="track__icon" viewBox="0 0 24 24" aria-hidden="true">
+      {playing ? <path d="M7 5h4v14H7zM13 5h4v14h-4z" /> : <path d="M8 5v14l11-7z" />}
+    </svg>
+  )
+}
+
 export function Track({ track, action, onAction }: TrackProps) {
+  const { playingId, toggle } = usePreview()
+  const isPlaying = playingId === track.id
   const label =
     action === 'add' ? `Add ${track.name} to playlist` : `Remove ${track.name} from playlist`
+  const artwork = track.artworkUrl && (
+    <img className="track__art" src={track.artworkUrl} alt="" width="48" height="48" />
+  )
+
   return (
-    <li className="track">
-      {track.artworkUrl && (
-        <img className="track__art" src={track.artworkUrl} alt="" width="48" height="48" />
+    <li className={isPlaying ? 'track track--playing' : 'track'}>
+      {track.previewUrl ? (
+        <button
+          type="button"
+          className="track__preview"
+          aria-label={`${isPlaying ? 'Pause' : 'Play'} preview of ${track.name}`}
+          title={isPlaying ? 'Pause preview' : 'Play 30-second preview'}
+          onClick={() => toggle(track)}
+        >
+          {artwork}
+          <PlayIcon playing={isPlaying} />
+        </button>
+      ) : (
+        artwork
       )}
       <div className="track__info">
         <h3 className="track__name">
